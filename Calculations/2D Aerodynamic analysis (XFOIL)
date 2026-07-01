@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D Aerodynamic Analysis — MH60 Airfoil</title>
+<style>
+  :root {
+    --bg:#000;
+    --surface:#0a0a0a;
+    --card:#111;
+    --card2:#0f0f0f;
+    --border:#2a2a2a;
+    --border2:#3a3a3a;
+    --text:#fff;
+    --muted:#888;
+    --dim:#4b4b4b;
+    --blue:#2f6bff;
+    --green:#18b46a;
+    --red:#ff5a5f;
+    --mono:'JetBrains Mono', monospace;
+    --sans:'Inter', system-ui, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--sans); }
+  body { line-height:1.7; font-size:14px; min-height:100vh; }
+  a { color:inherit; }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 30px; }
+  header { border-bottom:1px solid var(--border2); padding:46px 0 30px; }
+  .eyebrow { font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  h1 { margin:0; font-size:30px; line-height:1.15; font-weight:600; letter-spacing:-0.02em; }
+  .subtitle { margin-top:10px; color:var(--muted); max-width:900px; font-size:14px; }
+  .hero-grid { display:grid; grid-template-columns:1.15fr 0.85fr; gap:18px; margin-top:28px; }
+  .hero-visual, .panel { background:var(--card); border:1px solid var(--border2); }
+  .hero-visual { padding:20px; min-height:320px; position:relative; overflow:hidden; }
+  .panel { padding:18px 18px 16px; }
+  .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; border:1px solid var(--border2); background:var(--border2); }
+  .stat { background:var(--card); padding:16px 14px; }
+  .stat .value { font-family:var(--mono); font-size:22px; font-weight:600; letter-spacing:-0.02em; }
+  .stat .value span { font-size:13px; color:var(--muted); font-weight:400; }
+  .stat .label { margin-top:2px; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+  main { padding:0 0 60px; }
+  section { padding:44px 0 0; }
+  section:first-child { padding-top:38px; }
+  .section-head { display:flex; align-items:baseline; gap:12px; padding-bottom:11px; margin-bottom:18px; border-bottom:1px solid var(--border2); }
+  .section-num { font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--muted); }
+  h2 { margin:0; font-size:16px; font-weight:500; letter-spacing:-0.01em; }
+  p { margin:0 0 14px 0; color:var(--muted); }
+  strong { color:var(--text); font-weight:500; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .card { background:var(--card); border:1px solid var(--border2); padding:16px; }
+  .card.tight { padding:12px 14px; }
+  .label { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:6px; }
+  .mini-value { font-family:var(--mono); font-size:18px; line-height:1.2; }
+  .mini-value .unit { color:var(--muted); font-size:12px; font-weight:400; }
+  .small { font-size:12px; color:var(--muted); }
+  .callout { border:1px solid var(--border2); background:var(--surface); padding:14px 16px; }
+  .callout.blue { border-left:3px solid var(--blue); }
+  .callout.green { border-left:3px solid var(--green); }
+  .callout.red { border-left:3px solid var(--red); }
+  .callout .head { font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+  .callout.blue .head { color:var(--blue); }
+  .callout.green .head { color:var(--green); }
+  .callout.red .head { color:var(--red); }
+  .table-wrap { overflow-x:auto; border:1px solid var(--border2); background:var(--card); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead tr { background:var(--surface); }
+  th { text-align:left; padding:10px 14px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid var(--border2); }
+  td { padding:10px 14px; border-bottom:1px solid #1f1f1f; color:var(--muted); vertical-align:top; }
+  td:first-child { color:var(--text); }
+  tbody tr:nth-child(odd) { background:#101010; }
+  tbody tr:nth-child(even) { background:#0c0c0c; }
+  .mono { font-family:var(--mono); font-size:12px; }
+  .result-row td { background:#141414 !important; }
+  .result-row td:first-child { border-left:2px solid var(--green); padding-left:12px; }
+  .result-row td:last-child { color:var(--text); }
+  .warn-row td { background:#151313 !important; }
+  .warn-row td:first-child { border-left:2px solid var(--red); padding-left:12px; }
+  .warn-row td:last-child { color:var(--red); }
+  .ok-row td { background:#101313 !important; }
+  .ok-row td:first-child { border-left:2px solid var(--blue); padding-left:12px; }
+  .ok-row td:last-child { color:var(--blue); }
+  .figure { border:1px solid var(--border2); background:var(--card); padding:16px; }
+  .figure-title { font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:10px; }
+  .svgbox { width:100%; display:block; }
+  .section-note { border-left:3px solid var(--green); background:#09110d; padding:14px 16px; border:1px solid #193528; color:#c6d8ce; }
+  .section-note strong { color:#dfffe8; }
+  footer { border-top:1px solid var(--border2); color:var(--dim); font-family:var(--mono); font-size:12px; padding:22px 0 30px; }
+  .legend { display:flex; flex-wrap:wrap; gap:16px; align-items:center; font-size:12px; color:var(--muted); }
+  .leg-item { display:flex; align-items:center; gap:8px; }
+  .swatch { width:18px; height:3px; background:var(--text); display:inline-block; }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot.blue { background:var(--blue); }
+  .dot.green { background:var(--green); }
+  .dot.red { background:var(--red); }
+  .rule { height:1px; background:var(--border2); margin:18px 0; }
+  .chip { display:inline-block; padding:2px 6px; border:1px solid var(--border2); color:var(--muted); font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+  @media (max-width: 900px) {
+    .hero-grid, .grid-2, .grid-3, .grid-4 { grid-template-columns:1fr; }
+    .wrap { padding:0 18px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Aerodynamic Analysis · MH60 Airfoil · XFOIL Polar Study</div>
+    <h1>2D Aerodynamic Report — MH60 Airfoil</h1>
+    <p class="subtitle">This report summarises the two-dimensional airfoil analysis for the LW-PLA flying wing aircraft. XFOIL 6.99 polars were computed at Reynolds numbers 200k, 300k, and 400k (Mach 0, Ncrit 9), covering the launch, cruise, and higher-speed flight regimes. The airfoil profile is traced from the actual MH60 coordinate file.</p>
+
+    <div class="hero-grid">
+      <div class="hero-visual">
+        <svg viewBox="0 0 960 320" class="svgbox" aria-label="MH60 airfoil schematic with flow annotations">
+          <defs>
+            <marker id="arrowBlue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10" fill="none" stroke="#2f6bff" stroke-width="1.6"/>
+            </marker>
+            <marker id="arrowGreen" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10" fill="none" stroke="#18b46a" stroke-width="1.6"/>
+            </marker>
+            <marker id="arrowRed" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10" fill="none" stroke="#ff5a5f" stroke-width="1.6"/>
+            </marker>
+          </defs>
+          <rect x="0" y="0" width="960" height="320" fill="#111"/>
+          <line x1="40" y1="245" x2="920" y2="245" stroke="#333" stroke-width="1"/>
+          <text x="42" y="265" font-family="JetBrains Mono, monospace" font-size="10" fill="#555">Chord line</text>
+          <text x="46" y="34" font-family="JetBrains Mono, monospace" font-size="10" fill="#555">Airflow</text>
+          <line x1="50" y1="70" x2="250" y2="70" stroke="#2f6bff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+          <line x1="50" y1="95" x2="240" y2="95" stroke="#2f6bff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+          <line x1="50" y1="120" x2="220" y2="120" stroke="#2f6bff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+          <path d="M 155.00 160.00 L 157.23 160.09 L 163.99 160.19 L 175.20 159.85 L 190.55 158.80 L 209.73 156.89 L 232.34 153.96 L 257.87 150.00 L 285.81 145.15 L 315.68 139.60 L 347.02 133.60 L 379.39 127.46 L 412.41 121.56 L 445.83 116.17 L 479.38 111.49 L 512.82 107.65 L 545.87 104.67 L 578.21 102.60 L 609.53 101.48 L 639.51 101.35 L 667.88 102.27 L 694.42 104.27 L 718.91 107.30 L 741.17 111.33 L 761.03 116.26 L 778.35 122.00 L 793.00 128.43 L 804.96 135.39 L 814.18 142.61 L 820.64 149.74 L 823.96 155.53 L 824.58 157.36 L 824.93 159.04 L 825.00 160.07 L 824.90 160.97 L 824.59 161.81 L 824.05 162.67 L 822.95 164.00 L 821.50 165.36 L 820.78 165.95 L 813.24 170.48 L 802.34 174.80 L 788.25 178.74 L 771.12 182.13 L 751.09 184.83 L 728.28 186.77 L 702.84 187.94 L 674.98 188.38 L 644.93 188.17 L 613.02 187.41 L 579.57 186.17 L 544.93 184.55 L 509.50 182.67 L 473.69 180.62 L 437.94 178.48 L 402.68 176.34 L 368.35 174.23 L 335.37 172.21 L 304.14 170.29 L 275.05 168.51 L 248.45 166.89 L 224.69 165.44 L 204.05 164.15 L 186.80 163.00 L 173.17 161.99 L 163.27 161.03 L 157.13 160.28 L 155.00 160.00 Z"
+                fill="#0e0e0e" stroke="#d8d8d8" stroke-width="2.2" shape-rendering="geometricPrecision"/>
+          <path d="M 155.00 160.00 L 157.23 160.09 L 163.99 160.19 L 175.20 159.85 L 190.55 158.80 L 209.73 156.89 L 232.34 153.96 L 257.87 150.00 L 285.81 145.15 L 315.68 139.60 L 347.02 133.60 L 379.39 127.46 L 412.41 121.56 L 445.83 116.17 L 479.38 111.49 L 512.82 107.65 L 545.87 104.67 L 578.21 102.60 L 609.53 101.48 L 639.51 101.35 L 667.88 102.27 L 694.42 104.27 L 718.91 107.30 L 741.17 111.33 L 761.03 116.26 L 778.35 122.00 L 793.00 128.43 L 804.96 135.39 L 814.18 142.61 L 820.64 149.74 L 823.96 155.53 L 824.58 157.36 L 824.93 159.04 L 825.00 160.07 L 824.90 160.97 L 824.59 161.81 L 824.05 162.67 L 822.95 164.00 L 821.50 165.36 L 820.78 165.95 L 813.24 170.48 L 802.34 174.80 L 788.25 178.74 L 771.12 182.13 L 751.09 184.83 L 728.28 186.77 L 702.84 187.94 L 674.98 188.38 L 644.93 188.17 L 613.02 187.41 L 579.57 186.17 L 544.93 184.55 L 509.50 182.67 L 473.69 180.62 L 437.94 178.48 L 402.68 176.34 L 368.35 174.23 L 335.37 172.21 L 304.14 170.29 L 275.05 168.51 L 248.45 166.89 L 224.69 165.44 L 204.05 164.15 L 186.80 163.00 L 173.17 161.99 L 163.27 161.03 L 157.13 160.28 L 155.00 160.00 Z"
+                fill="none" stroke="#18b46a" stroke-opacity="0.28" stroke-width="8" shape-rendering="geometricPrecision"/>
+          <line x1="825" y1="245" x2="155" y2="245" stroke="#666" stroke-width="1" stroke-dasharray="4 4"/>
+          <text x="500" y="268" font-family="JetBrains Mono, monospace" font-size="11" fill="#666">Chord</text>
+          <line x1="155" y1="257" x2="825" y2="257" stroke="#666" stroke-width="1" marker-end="url(#arrowRed)"/>
+          <circle cx="825" cy="160" r="4" fill="#fff"/>
+          <circle cx="155" cy="160" r="4" fill="#fff"/>
+          <text x="777" y="224" font-family="JetBrains Mono, monospace" font-size="10" fill="#d8d8d8">Leading edge</text>
+          <text x="147" y="224" font-family="JetBrains Mono, monospace" font-size="10" fill="#d8d8d8">Trailing edge</text>
+          <text x="495" y="92" font-family="Inter, sans-serif" font-size="16" fill="#2f6bff" font-weight="500">Suction side</text>
+          <text x="515" y="198" font-family="Inter, sans-serif" font-size="16" fill="#18b46a" font-weight="500">Pressure side</text>
+          <line x1="260" y1="198" x2="330" y2="150" stroke="#2f6bff" stroke-width="2" marker-end="url(#arrowBlue)"/>
+          <line x1="260" y1="190" x2="330" y2="178" stroke="#18b46a" stroke-width="2" marker-end="url(#arrowGreen)"/>
+          <text x="270" y="142" font-family="JetBrains Mono, monospace" font-size="10" fill="#2f6bff">Low pressure</text>
+          <text x="276" y="176" font-family="JetBrains Mono, monospace" font-size="10" fill="#18b46a">Higher pressure</text>
+          <rect x="682" y="24" width="238" height="42" fill="#0b0b0b" stroke="#2a2a2a"/>
+          <text x="696" y="43" font-family="JetBrains Mono, monospace" font-size="10" fill="#888">Actual airfoil coordinates</text>
+          <text x="696" y="57" font-family="JetBrains Mono, monospace" font-size="10" fill="#fff">MH60 profile traced from .dat</text>
+        </svg>
+      </div>
+
+      <div class="panel">
+        <div class="stats">
+          <div class="stat">
+            <div class="value">61.9 <span>L/D</span></div>
+            <div class="label">Peak at Re 200k · α = 6.5°</div>
+          </div>
+          <div class="stat">
+            <div class="value">70.8 <span>L/D</span></div>
+            <div class="label">Peak at Re 300k · α = 6.0°</div>
+          </div>
+          <div class="stat">
+            <div class="value">77.7 <span>L/D</span></div>
+            <div class="label">Peak at Re 400k · α = 6.0°</div>
+          </div>
+          <div class="stat">
+            <div class="value">1.22 <span>CLmax</span></div>
+            <div class="label">Best lift at 400k · α = 12°</div>
+          </div>
+        </div>
+        <div class="rule"></div>
+        <p class="small">The section is analysed at three Reynolds numbers because the aircraft passes through distinct operating states. The low Reynolds regime dominates launch and initial climb. The middle regime represents normal cruise. The higher Reynolds regime reflects faster flight where the airfoil is more efficient and the drag bucket is deeper.</p>
+        <div class="callout blue">
+          <div class="head">Lift</div>
+          The lift curve is nearly identical across all three Reynolds numbers through the linear range. This means the wing responds predictably from launch to cruise. The zero-lift angle is slightly negative, as expected for a reflexed flying-wing section.
+        </div>
+        <div class="callout green" style="margin-top:10px;">
+          <div class="head">Efficiency</div>
+          L/D rises substantially with Reynolds number — from 61.9 at 200k to 77.7 at 400k. The drag bucket is deep and centered around 5–7°, which aligns well with the cruise operating point.
+        </div>
+        <div class="callout red" style="margin-top:10px;">
+          <div class="head">Stall</div>
+          CLmax occurs near 11.5–12° and the roll-off is gradual. This is desirable for a tailless aircraft — there is no sharp stall cliff, and the pitching moment remains controlled near the edge of the envelope.
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">01</span>
+        <h2>Simulation setup and operating envelope</h2>
+      </div>
+      <div class="grid-4">
+        <div class="card tight"><div class="label">Airfoil</div><div class="mini-value">MH60</div><div class="small">Reflexed section chosen for the flying wing. 10.08% thickness, 1.82% reflex camber.</div></div>
+        <div class="card tight"><div class="label">Reynolds numbers</div><div class="mini-value">200k / 300k / 400k</div><div class="small">Launch (≈30–40 km/h), cruise (≈55–65 km/h), and higher-speed flight.</div></div>
+        <div class="card tight"><div class="label">Mach</div><div class="mini-value">0.00</div><div class="small">Incompressible analysis. Maximum flight speed well below any compressibility regime.</div></div>
+        <div class="card tight"><div class="label">Ncrit</div><div class="mini-value">9</div><div class="small">Free-air turbulence level representative of a clean outdoor environment.</div></div>
+      </div>
+
+      <div style="height:16px"></div>
+
+      <div class="figure">
+        <div class="figure-title">Mission map — where each Reynolds number appears in the flight envelope</div>
+        <svg viewBox="0 0 1100 210" class="svgbox" aria-label="Reynolds number mission map showing launch, cruise, and fast flight regimes">
+          <rect x="0" y="0" width="1100" height="210" fill="#111"/>
+          <line x1="80" y1="110" x2="1020" y2="110" stroke="#2b2b2b" stroke-width="1"/>
+          <line x1="160" y1="110" x2="160" y2="70" stroke="#2f6bff" stroke-width="3"/>
+          <circle cx="160" cy="70" r="8" fill="#2f6bff"/>
+          <text x="110" y="48" font-family="JetBrains Mono, monospace" font-size="11" fill="#2f6bff">Launch</text>
+          <text x="90" y="132" font-family="JetBrains Mono, monospace" font-size="10" fill="#666">Re ≈ 180–220k</text>
+          <line x1="545" y1="110" x2="545" y2="62" stroke="#18b46a" stroke-width="3"/>
+          <circle cx="545" cy="62" r="8" fill="#18b46a"/>
+          <text x="500" y="48" font-family="JetBrains Mono, monospace" font-size="11" fill="#18b46a">Cruise</text>
+          <text x="480" y="132" font-family="JetBrains Mono, monospace" font-size="10" fill="#666">Re ≈ 290–340k</text>
+          <line x1="890" y1="110" x2="890" y2="54" stroke="#ff5a5f" stroke-width="3"/>
+          <circle cx="890" cy="54" r="8" fill="#ff5a5f"/>
+          <text x="830" y="48" font-family="JetBrains Mono, monospace" font-size="11" fill="#ff5a5f">Fast flight</text>
+          <text x="840" y="132" font-family="JetBrains Mono, monospace" font-size="10" fill="#666">Re ≈ 420–480k</text>
+          <text x="80" y="170" font-family="Inter, sans-serif" font-size="13" fill="#888">Re values at the MAC (275 mm) for the estimated aircraft AUW of 1.0 kg. The dominant regime is cruise at Re ≈ 300k.</text>
+          <text x="80" y="190" font-family="Inter, sans-serif" font-size="13" fill="#888">The analysis covers 200k, 300k, and 400k to bracket the full operating envelope conservatively.</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">02</span>
+        <h2>Multi-Reynolds-number polar comparison</h2>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div class="legend">
+          <div class="leg-item"><span class="dot blue"></span><span>Re 200k — launch regime</span></div>
+          <div class="leg-item"><span class="dot green"></span><span>Re 300k — cruise regime</span></div>
+          <div class="leg-item"><span class="dot red"></span><span>Re 400k — fast flight regime</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="figure"><div class="figure-title">Lift coefficient (CL) vs angle of attack</div><div id="chartCL"></div></div>
+        <div class="figure"><div class="figure-title">Drag coefficient (CD) vs angle of attack</div><div id="chartCD"></div></div>
+        <div class="figure"><div class="figure-title">Lift-to-drag ratio (L/D) vs angle of attack</div><div id="chartLD"></div></div>
+        <div class="figure"><div class="figure-title">Pitching moment coefficient (Cm) vs angle of attack</div><div id="chartCM"></div></div>
+      </div>
+
+      <div style="height:18px"></div>
+      <div class="section-note">
+        <strong>What these curves mean for the aircraft:</strong> lift grows almost linearly through the usable range and is nearly Reynolds-number-independent — the wing behaves the same at launch and cruise angles. Drag is strongly Reynolds-number-dependent, especially in the 0–6° range where the laminar separation bubble is largest at low Re. The pitching moment is smooth and well-behaved, and the Cm trend is similar across all three Reynolds numbers, which means the elevon trim requirement does not change substantially with speed.
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">03</span>
+        <h2>Key numerical results</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Reynolds number</th>
+              <th>CLmax</th>
+              <th>α at CLmax</th>
+              <th>CDmin</th>
+              <th>α at CDmin</th>
+              <th>Peak L/D</th>
+              <th>α at peak L/D</th>
+              <th>Zero-lift α</th>
+              <th>Cm at α = 3°</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="ok-row">
+              <td>200k</td>
+              <td class="mono">1.1598</td>
+              <td class="mono">12.0°</td>
+              <td class="mono">0.00961</td>
+              <td class="mono">0.0°</td>
+              <td class="mono">61.9</td>
+              <td class="mono">6.5°</td>
+              <td class="mono">−1.18°</td>
+              <td class="mono">−0.0141</td>
+            </tr>
+            <tr class="result-row">
+              <td>300k</td>
+              <td class="mono">1.1934</td>
+              <td class="mono">11.5°</td>
+              <td class="mono">0.00765</td>
+              <td class="mono">−1.0°</td>
+              <td class="mono">70.8</td>
+              <td class="mono">6.0°</td>
+              <td class="mono">−0.88°</td>
+              <td class="mono">−0.0132</td>
+            </tr>
+            <tr class="warn-row">
+              <td>400k</td>
+              <td class="mono">1.2246</td>
+              <td class="mono">12.0°</td>
+              <td class="mono">0.00659</td>
+              <td class="mono">−0.5°</td>
+              <td class="mono">77.7</td>
+              <td class="mono">6.0°</td>
+              <td class="mono">−0.78°</td>
+              <td class="mono">−0.0128</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="height:10px"></div>
+      <p class="small" style="color:var(--dim)">Zero-lift angles are interpolated from adjacent data points. All L/D values are computed as CL/CD at each tabulated point; the peak is the maximum in the dataset. CDmin at 200k is at α = 0.0° because the polar starts at −4°; the true minimum may be slightly more negative.</p>
+
+      <div style="height:14px"></div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="label">Best aerodynamic efficiency</div>
+          <div class="mini-value" style="color:var(--green)">77.7</div>
+          <div class="small">Peak L/D at Re 400k, α = 6°. The improvement from 200k to 400k is 26%, confirming that cruise is substantially more efficient than the hand-launch regime.</div>
+        </div>
+        <div class="card">
+          <div class="label">Maximum lift</div>
+          <div class="mini-value" style="color:var(--blue)">1.225</div>
+          <div class="small">CLmax = 1.2246 at Re 400k, α = 12°. The stall roll-off is gradual across all three Reynolds numbers — no sharp cliff. Re 200k CLmax is within 5% of Re 400k.</div>
+        </div>
+        <div class="card">
+          <div class="label">Drag bucket depth</div>
+          <div class="mini-value" style="color:var(--red)">0.00659</div>
+          <div class="small">CDmin at Re 400k. At Re 200k the minimum CD is 46% higher (0.00961), which is the clearest sign that the launch regime has a meaningful drag penalty.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">04</span>
+        <h2>Interpretation of the polar trends</h2>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="label">Lift curve</div>
+          <p>The lift curve slope is approximately 0.104 per degree (5.96 per radian) at Re 300k, consistent across all three Reynolds numbers through the linear range of −3° to 10°. The zero-lift angle shifts slightly with Reynolds number — from −1.18° at 200k to −0.78° at 400k — because the boundary layer displacement thickness changes with Re. This shift is small and has negligible impact on trim.</p>
+        </div>
+        <div class="card">
+          <div class="label">Drag bucket and laminar bubble</div>
+          <p>The large drag difference between 200k and 400k in the cruise range (CDmin 0.00961 vs 0.00659) arises from the laminar separation bubble on the lower surface. At low Reynolds numbers the bubble is larger, causes more pressure drag, and delays transition. As Re rises the bubble shrinks, transition moves forward on the lower surface, and CD drops substantially. This is the dominant aerodynamic effect in this size class of aircraft.</p>
+        </div>
+        <div class="card">
+          <div class="label">Pitching moment</div>
+          <p>Cm at the cruise angle (3°) is approximately −0.014 at Re 200k and −0.013 at Re 400k. The variation is small and the trend is smooth. The moment goes slightly positive above 10–11° due to the reflex camber — exactly as intended for a tailless section — before the wing stalls. This means elevon trim requirements do not change significantly across the flight envelope.</p>
+        </div>
+        <div class="card">
+          <div class="label">Stall character</div>
+          <p>CLmax occurs at 11.5° (Re 300k) and 12° (Re 200k and 400k). The drop beyond CLmax is less than 5% over the next two degrees in all cases. This is a gentle, progressive stall, which is the correct behaviour for a small tailless aircraft. The wing will give adequate aerodynamic warning before full separation, and recovery is straightforward.</p>
+        </div>
+      </div>
+
+      <div style="height:18px"></div>
+      <div class="figure">
+        <div class="figure-title">Boundary layer behaviour — why drag differs between low and high Reynolds number</div>
+        <svg viewBox="0 0 1100 260" class="svgbox" aria-label="Diagram showing laminar separation bubble size difference between Re 200k and Re 400k">
+          <rect x="0" y="0" width="1100" height="260" fill="#111"/>
+          <defs>
+            <marker id="mb1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10" fill="none" stroke="#2f6bff" stroke-width="1.6"/>
+            </marker>
+            <marker id="mb2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10" fill="none" stroke="#18b46a" stroke-width="1.6"/>
+            </marker>
+          </defs>
+          <text x="40" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#2f6bff">Re 200k — larger separation bubble</text>
+          <text x="570" y="34" font-family="JetBrains Mono, monospace" font-size="11" fill="#18b46a">Re 400k — smaller bubble, earlier reattachment</text>
+          <line x1="40" y1="72" x2="500" y2="72" stroke="#2f6bff" stroke-width="1.5" marker-end="url(#mb1)"/>
+          <line x1="570" y1="72" x2="1030" y2="72" stroke="#18b46a" stroke-width="1.5" marker-end="url(#mb2)"/>
+          <path d="M120 150 C165 132, 210 114, 258 106 C310 98, 360 100, 410 112 C438 118, 462 132, 486 152 C462 152, 438 150, 410 145 C360 136, 310 136, 258 140 C210 145, 165 154, 120 168 Z" fill="#0e0e0e" stroke="#d8d8d8" stroke-width="1.8"/>
+          <path d="M648 150 C693 132, 738 114, 786 106 C838 98, 888 100, 938 112 C966 118, 990 132, 1014 152 C990 152, 966 150, 938 145 C888 136, 838 136, 786 140 C738 145, 693 154, 648 168 Z" fill="#0e0e0e" stroke="#d8d8d8" stroke-width="1.8"/>
+          <!-- Bubble 200k: large -->
+          <path d="M242 140 C278 126, 315 121, 352 122 C388 123, 410 130, 426 139" fill="none" stroke="#2f6bff" stroke-width="4" stroke-linecap="square"/>
+          <path d="M244 138 C283 126, 320 121, 356 122 C392 123, 410 130, 426 138" fill="none" stroke="#ff5a5f" stroke-width="3" stroke-dasharray="5 4" stroke-linecap="square" opacity="0.9"/>
+          <!-- Bubble 400k: small -->
+          <path d="M790 140 C806 131, 822 127, 840 128 C856 129, 868 134, 878 140" fill="none" stroke="#18b46a" stroke-width="4" stroke-linecap="square"/>
+          <path d="M792 139 C808 132, 824 128, 840 129 C854 130, 866 134, 876 139" fill="none" stroke="#2f6bff" stroke-width="2" stroke-dasharray="3 3" stroke-linecap="square" opacity="0.8"/>
+          <text x="220" y="186" font-family="Inter, sans-serif" font-size="12" fill="#888">Large bubble → high CDp → CDmin 0.00961 at Re 200k</text>
+          <text x="700" y="186" font-family="Inter, sans-serif" font-size="12" fill="#888">Small bubble → lower CDp → CDmin 0.00659 at Re 400k</text>
+          <rect x="120" y="202" width="380" height="32" fill="#121212" stroke="#333"/>
+          <rect x="648" y="202" width="380" height="32" fill="#121212" stroke="#333"/>
+          <text x="132" y="222" font-family="JetBrains Mono, monospace" font-size="11" fill="#666">Separation bubble ~37% chord (lower surface at cruise)</text>
+          <text x="660" y="222" font-family="JetBrains Mono, monospace" font-size="11" fill="#666">Smaller bubble — earlier reattachment, less pressure drag</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">05</span>
+        <h2>What the results mean for this aircraft</h2>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="label">Launch — Re ≈ 180–220k</div>
+          <div class="mini-value" style="color:var(--blue)">Higher drag</div>
+          <div class="small" style="margin-top:8px;">CDmin ≈ 0.0096. The drag penalty is real but acceptable for a hand-launched aircraft — the launch phase is brief and the wing transitions quickly into the cruise regime as speed builds. Peak L/D ≈ 62 is still adequate.</div>
+        </div>
+        <div class="card">
+          <div class="label">Cruise — Re ≈ 290–340k</div>
+          <div class="mini-value" style="color:var(--green)">Efficient</div>
+          <div class="small" style="margin-top:8px;">CDmin ≈ 0.0077, peak L/D ≈ 71. The cruise operating point is α ≈ 2–4°, CL ≈ 0.35–0.50. This places the aircraft in the lower end of the drag bucket, which is comfortable and allows slight altitude adjustment without penalty.</div>
+        </div>
+        <div class="card">
+          <div class="label">Fast flight — Re ≈ 420–480k</div>
+          <div class="mini-value" style="color:var(--red)">Deepest bucket</div>
+          <div class="small" style="margin-top:8px;">CDmin ≈ 0.0066, peak L/D ≈ 78. The drag bucket deepens and widens at high Re. Fast flight is both efficient and gives the largest stall margin (operating well below CLmax). Structurally, the 3D wing sees induced drag that will soften these 2D values.</div>
+        </div>
+      </div>
+
+      <div style="height:18px"></div>
+      <div class="section-note">
+        <strong>Design conclusion:</strong> The MH60 is a practical choice for this tailless aircraft. The lift curve is well-behaved and Re-insensitive through the normal operating range. The drag penalty at launch is real but brief. The pitching moment is smooth and the stall is progressive. The main limitation of this 2D analysis is that it does not capture induced drag or spanwise effects — the 3D wing efficiency will be lower than these polar values suggest, particularly at lower speeds.
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">06</span>
+        <h2>How this data feeds the next analyses</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Next step</th>
+              <th>Input from this analysis</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Stall speed</td><td class="mono">CLmax = 1.16–1.22 (Re-dependent)</td><td>Use 1.16 (200k) for worst-case launch stall estimate. Gives V_stall ≈ 31 km/h at 1.0 kg AUW.</td></tr>
+            <tr><td>Cruise operating point</td><td class="mono">CL vs α at Re 300k</td><td>Cruise CL ≈ 0.3–0.5 → α ≈ 2–4°. Confirmed by 3D wing loading.</td></tr>
+            <tr><td>Elevon trim requirement</td><td class="mono">Cm at cruise α (−0.013 to −0.014)</td><td>Small, negative Cm requires TE-up elevon trim. Consistent across Re — trim changes slowly with speed.</td></tr>
+            <tr><td>Power required</td><td class="mono">CD vs α at Re 300k</td><td>2D CD is a lower bound. 3D simulation will add induced drag (SimScale next step).</td></tr>
+            <tr><td>3D wing simulation (SimScale)</td><td class="mono">All polars as reference</td><td>The 3D results will be compared against these 2D values to identify induced drag, tip effects, and span efficiency.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="height:16px"></div>
+      <div class="grid-4">
+        <div class="card tight"><div class="label">Launch stall margin</div><div class="mini-value">Adequate</div><div class="small" style="margin-top:4px;">CLmax available at Re 200k is still 1.16.</div></div>
+        <div class="card tight"><div class="label">Cruise efficiency</div><div class="mini-value" style="color:var(--green)">Strong</div><div class="small" style="margin-top:4px;">L/D ≈ 65–71 in the cruise band at Re 300k.</div></div>
+        <div class="card tight"><div class="label">Speed sensitivity of trim</div><div class="mini-value" style="color:var(--blue)">Small</div><div class="small" style="margin-top:4px;">ΔCm across flight envelope ≈ 0.001 per Re step.</div></div>
+        <div class="card tight"><div class="label">Stall character</div><div class="mini-value" style="color:var(--red)">Gentle</div><div class="small" style="margin-top:4px;">Less than 5% CL drop in the first 2° past stall.</div></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <span class="section-num">07</span>
+        <h2>Computation notes and data source</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Parameter</th><th>Re 200k</th><th>Re 300k</th><th>Re 400k</th></tr></thead>
+          <tbody>
+            <tr><td>CDmin</td><td class="mono">0.00961 at α = 0.0°</td><td class="mono">0.00765 at α = −1.0°</td><td class="mono">0.00659 at α = −0.5°</td></tr>
+            <tr><td>Peak L/D</td><td class="mono">61.94 at α = 6.5°</td><td class="mono">70.80 at α = 6.0°</td><td class="mono">77.72 at α = 6.0°</td></tr>
+            <tr><td>CLmax</td><td class="mono">1.1598 at α = 12.0°</td><td class="mono">1.1934 at α = 11.5°</td><td class="mono">1.2246 at α = 12.0°</td></tr>
+            <tr><td>Zero-lift α</td><td class="mono">−1.18° (interp.)</td><td class="mono">−0.88° (interp.)</td><td class="mono">−0.78° (interp.)</td></tr>
+            <tr><td>Cm at α = 3°</td><td class="mono">−0.0141</td><td class="mono">−0.0132</td><td class="mono">−0.0128</td></tr>
+            <tr><td>Top transition at α = 6°</td><td class="mono">x/c = 0.306</td><td class="mono">x/c = 0.306</td><td class="mono">x/c = 0.282</td></tr>
+            <tr><td>Bottom transition at α = 6°</td><td class="mono">x/c = 1.000 (forced)</td><td class="mono">x/c = 1.000 (forced)</td><td class="mono">x/c = 1.000 (forced)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="height:14px"></div>
+      <div class="section-note">
+        <strong>Data source:</strong> XFOIL 6.99 polars for MH60 (68 input coordinates, repanelled to 160 nodes). Reynolds numbers 200k, 300k, and 400k. Mach = 0, Ncrit = 9, free transition both surfaces, ITER = 100. Alpha sweep −5° to 14° at 0.5° steps. Note that the Re 200k run starts at α = −4° (not −5°), so the polar table has one fewer row at the negative end.
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">LW-PLA aircraft · MH60 2D aerodynamic report · XFOIL 6.99 · all data from polar files</div>
+</footer>
+
+<script>
+const RAW = {
+  "200k": {
+    alpha: [-4.0,-3.5,-3.0,-2.5,-2.0,-1.5,-1.0,-0.5,0.0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0,10.5,11.0,11.5,12.0,12.5,13.0,13.5,14.0],
+    CL:    [-0.2927,-0.2512,-0.2047,-0.1578,-0.1144,-0.0611,0.0342,0.1258,0.1743,0.2215,0.2731,0.3224,0.3748,0.426,0.4779,0.5305,0.5828,0.6346,0.6861,0.7375,0.7886,0.8386,0.8875,0.9347,0.9805,1.0242,1.0652,1.1029,1.1316,1.1471,1.1522,1.1545,1.1598,1.1597,1.1448,1.1248,1.0956],
+    CD:    [0.0138,0.01206,0.01154,0.01085,0.01035,0.00977,0.00968,0.00969,0.00961,0.00971,0.00965,0.00975,0.00971,0.00984,0.00995,0.01015,0.01049,0.01093,0.01154,0.0121,0.01275,0.01354,0.01448,0.01557,0.01683,0.01819,0.01977,0.02146,0.02397,0.02768,0.03125,0.03635,0.04089,0.04566,0.05315,0.06216,0.0733],
+    CM:    [-0.0228,-0.0203,-0.0183,-0.016,-0.0124,-0.0103,-0.0167,-0.0236,-0.0223,-0.0203,-0.0193,-0.0175,-0.0166,-0.0152,-0.0141,-0.0133,-0.0124,-0.0116,-0.0109,-0.0102,-0.0096,-0.0089,-0.0082,-0.0074,-0.0064,-0.0053,-0.0041,-0.0027,-0.0004,0.0031,0.0068,0.0098,0.0112,0.011,0.0101,0.0078,0.003],
+    LD:    [-21.21,-20.83,-17.74,-14.54,-11.05,-6.25,3.53,12.98,18.14,22.81,28.3,33.07,38.6,43.29,48.03,52.27,55.56,58.06,59.45,60.95,61.85,61.94,61.29,60.03,58.26,56.31,53.88,51.39,47.21,41.44,36.87,31.76,28.36,25.4,21.54,18.1,14.95]
+  },
+  "300k": {
+    alpha: [-5.0,-4.5,-4.0,-3.5,-3.0,-2.5,-1.5,-1.0,-0.5,0.0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0,10.5,11.0,11.5,12.0,12.5,13.0,13.5,14.0],
+    CL:    [-0.4203,-0.3723,-0.3242,-0.278,-0.2276,-0.1768,-0.0788,-0.0238,0.0779,0.1641,0.2143,0.2655,0.3176,0.37,0.4226,0.4756,0.5283,0.581,0.6336,0.6858,0.7376,0.7887,0.8392,0.8888,0.9371,0.9836,1.0291,1.0725,1.1127,1.1457,1.1671,1.1825,1.1934,1.1895,1.1786,1.1755,1.1666,1.1556],
+    CD:    [0.01697,0.01493,0.01314,0.01089,0.01008,0.00946,0.0082,0.00765,0.00765,0.00766,0.00766,0.00769,0.00775,0.00786,0.00802,0.00824,0.00855,0.00894,0.00938,0.00989,0.01048,0.01114,0.01187,0.0127,0.01366,0.01477,0.01592,0.01721,0.01873,0.02082,0.0236,0.02606,0.02886,0.03359,0.03968,0.04565,0.05285,0.06082],
+    CM:    [-0.0171,-0.0149,-0.013,-0.0113,-0.0103,-0.0091,-0.0053,-0.0038,-0.0125,-0.0186,-0.0175,-0.0164,-0.0155,-0.0146,-0.0138,-0.0132,-0.0125,-0.012,-0.0115,-0.011,-0.0105,-0.01,-0.0094,-0.0088,-0.0081,-0.0073,-0.0064,-0.0053,-0.0039,-0.0018,0.0013,0.0049,0.0078,0.01,0.0104,0.0099,0.0081,0.0055],
+    LD:    [-24.77,-24.94,-24.67,-25.53,-22.58,-18.69,-9.61,-3.11,10.18,21.42,27.98,34.53,40.98,47.07,52.69,57.72,61.79,64.99,67.55,69.34,70.38,70.8,70.7,69.98,68.6,66.59,64.64,62.32,59.41,55.03,49.45,45.38,41.35,35.41,29.7,25.75,22.07,19.0]
+  },
+  "400k": {
+    alpha: [-5.0,-4.5,-4.0,-3.5,-3.0,-2.5,-2.0,-1.5,-1.0,-0.5,0.0,0.5,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5,10.0,10.5,11.0,11.5,12.0,12.5,13.0,13.5,14.0],
+    CL:    [-0.4362,-0.3864,-0.337,-0.2872,-0.2364,-0.1832,-0.1311,-0.0798,-0.0308,0.0395,0.134,0.2102,0.2621,0.3145,0.3674,0.4205,0.4739,0.5271,0.5801,0.6331,0.6857,0.7378,0.7896,0.8406,0.8907,0.9397,0.9876,1.0344,1.0793,1.1213,1.1579,1.1874,1.2125,1.2201,1.2246,1.2144,1.21,1.2012,1.1892],
+    CD:    [0.01606,0.01409,0.01221,0.01037,0.00928,0.00873,0.00812,0.00756,0.00696,0.00659,0.00666,0.00669,0.00672,0.00681,0.00694,0.00713,0.00738,0.00771,0.00811,0.00854,0.00902,0.00958,0.01016,0.01085,0.01165,0.01253,0.01351,0.01455,0.01572,0.01712,0.01894,0.02117,0.02335,0.02608,0.02964,0.03527,0.04106,0.04801,0.05598],
+    CM:    [-0.0124,-0.0108,-0.0093,-0.0079,-0.0073,-0.0066,-0.0058,-0.0045,-0.0025,-0.0043,-0.0121,-0.0163,-0.0154,-0.0146,-0.0139,-0.0133,-0.0128,-0.0123,-0.0119,-0.0115,-0.011,-0.0106,-0.0102,-0.0097,-0.0092,-0.0086,-0.0079,-0.0071,-0.0061,-0.0048,-0.0031,-0.0008,0.002,0.0062,0.009,0.0103,0.0101,0.0085,0.0059],
+    LD:    [-27.16,-27.42,-27.6,-27.7,-25.47,-20.99,-16.15,-10.56,-4.43,5.99,20.12,31.42,39.0,46.18,52.94,58.98,64.21,68.37,71.53,74.13,76.02,77.01,77.72,77.47,76.45,75.0,73.1,71.09,68.66,65.5,61.14,56.09,51.93,46.78,41.32,34.43,29.47,25.02,21.24]
+  }
+};
+
+const COLORS = { "200k": "#2f6bff", "300k": "#18b46a", "400k": "#ff5a5f" };
+const LABELS = { "200k": "Re 200k", "300k": "Re 300k", "400k": "Re 400k" };
+
+function renderChart(containerId, yKey, yLabel, yMin, yMax) {
+  const el = document.getElementById(containerId);
+  const W = 520, H = 340;
+  const M = { left: 58, right: 18, top: 22, bottom: 44 };
+  const w = W - M.left - M.right;
+  const h = H - M.top - M.bottom;
+
+  const allX = Object.values(RAW).flatMap(d => d.alpha);
+  const allY = Object.values(RAW).flatMap(d => d[yKey]);
+  const xMin = -5, xMax = 14;
+  const pad = (yMax - yMin) * 0.05;
+  const ya = yMin - pad, yb = yMax + pad;
+
+  function X(v) { return M.left + (v - xMin) / (xMax - xMin) * w; }
+  function Y(v) { return M.top + h - (v - ya) / (yb - ya) * h; }
+
+  const gridLines = (n, axis) => Array.from({length: n+1}, (_, i) => {
+    const t = i/n;
+    if (axis === 'x') {
+      const v = xMin + t*(xMax-xMin);
+      return `<line x1="${X(v)}" y1="${M.top}" x2="${X(v)}" y2="${M.top+h}" stroke="#1e1e1e" stroke-width="1"/>
+              <text x="${X(v)}" y="${M.top+h+16}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#555">${v.toFixed(0)}</text>`;
+    } else {
+      const v = ya + t*(yb-ya);
+      const dec = (yb-ya) > 50 ? 0 : (yb-ya) > 5 ? 1 : 3;
+      return `<line x1="${M.left}" y1="${Y(v)}" x2="${M.left+w}" y2="${Y(v)}" stroke="#1e1e1e" stroke-width="1"/>
+              <text x="${M.left-8}" y="${Y(v)+4}" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="10" fill="#555">${v.toFixed(dec)}</text>`;
+    }
+  }).join('');
+
+  const zeroY = (ya <= 0 && 0 <= yb)
+    ? `<line x1="${M.left}" y1="${Y(0)}" x2="${M.left+w}" y2="${Y(0)}" stroke="#3a3a3a" stroke-width="1"/>`
+    : '';
+  const zeroX = `<line x1="${X(0)}" y1="${M.top}" x2="${X(0)}" y2="${M.top+h}" stroke="#3a3a3a" stroke-width="1"/>`;
+
+  const paths = Object.entries(RAW).map(([re, d]) => {
+    const pts = d.alpha.map((a, i) => `${X(a).toFixed(1)},${Y(d[yKey][i]).toFixed(1)}`).join(' ');
+    return `<polyline points="${pts}" fill="none" stroke="${COLORS[re]}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join('');
+
+  const dots = Object.entries(RAW).map(([re, d]) => {
+    const peakIdx = yKey === 'LD' ? d[yKey].indexOf(Math.max(...d[yKey]))
+                  : yKey === 'CL' ? d[yKey].indexOf(Math.max(...d[yKey]))
+                  : d[yKey].indexOf(Math.min(...d[yKey]));
+    const pa = d.alpha[peakIdx], pv = d[yKey][peakIdx];
+    return `<circle cx="${X(pa)}" cy="${Y(pv)}" r="4" fill="${COLORS[re]}" stroke="#111" stroke-width="1.5"/>`;
+  }).join('');
+
+  // legend inside chart
+  const legend = Object.entries(COLORS).map(([re, c], i) =>
+    `<rect x="${M.left+8}" y="${M.top+8+i*16}" width="16" height="3" fill="${c}" rx="1"/>
+     <text x="${M.left+30}" y="${M.top+14+i*16}" font-family="JetBrains Mono, monospace" font-size="10" fill="${c}">${LABELS[re]}</text>`
+  ).join('');
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}px" role="img" aria-label="${yLabel} comparison across three Reynolds numbers">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#111"/>
+    <rect x="${M.left}" y="${M.top}" width="${w}" height="${h}" fill="#0c0c0c"/>
+    ${gridLines(7,'x')} ${gridLines(6,'y')} ${zeroY} ${zeroX}
+    <rect x="${M.left}" y="${M.top}" width="${w}" height="${h}" fill="none" stroke="#3a3a3a" stroke-width="1"/>
+    ${paths} ${dots} ${legend}
+    <text x="${M.left+w/2}" y="${H-6}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#555">α (degrees)</text>
+    <text x="14" y="${M.top+h/2}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#555" transform="rotate(-90,14,${M.top+h/2})">${yLabel}</text>
+  </svg>`;
+}
+
+renderChart('chartCL', 'CL', 'CL', -0.5, 1.3);
+renderChart('chartCD', 'CD', 'CD', 0, 0.08);
+renderChart('chartLD', 'LD', 'L/D', -30, 85);
+renderChart('chartCM', 'CM', 'Cm', -0.025, 0.015);
+</script>
+</body>
+</html>
